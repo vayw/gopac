@@ -1,0 +1,16 @@
+var RE = /.*\.([\w]+\.[\w]+)/i;
+
+var DOMAINS = [
+  {{- range .domains }}
+  "{{ . }}",
+  {{- end }}
+]
+
+function FindProxyForURL (url, host) {
+    var searchDomain = url.match(RE)[1];
+    if (DOMAINS.includes(searchDomain)) {
+      return '{{ .scheme }} {{ .address }}:{{ .port }}; DIRECT';
+    } else {
+      return 'DIRECT';
+    }
+}
