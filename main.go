@@ -1,16 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"text/template"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/render"
 )
 
 var version = "undefined"
@@ -18,6 +20,7 @@ var debug bool
 
 var proxy_scheme, proxy_address, proxy_port string
 
+var PACfile string
 var DOMAINS []string
 
 //go:embed templates/proxy.pac.tmpl
@@ -34,6 +37,7 @@ func main() {
 	flag.Parse()
 
 	loadDomains(*config)
+	preparePAC()
 
 	httpport := fmt.Sprintf("%s:%d", *addr, *port)
 	router := setupRouter()
@@ -41,13 +45,28 @@ func main() {
 	router.Run(httpport)
 }
 
+func preparePAC() {
+	templ := template.Must(template.New("").ParseFS(f, "templates/*.tmpl"))
+
+	var tpl bytes.Buffer
+	data := struct {
+		Address string
+		Port    string
+		Scheme  string
+		Domains []string
+	}{proxy_address, proxy_port, proxy_scheme, DOMAINS}
+
+	if err := templ.ExecuteTemplate(&tpl, "proxy.pac.tmpl", data); err != nil {
+		log.Panic(err)
+	}
+	PACfile = tpl.String()
+}
+
 func setupRouter() *gin.Engine {
 	if debug == false {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	router := gin.Default()
-	templ := template.Must(template.New("").ParseFS(f, "templates/*.tmpl"))
-	router.SetHTMLTemplate(templ)
 
 	router.GET("/proxy.pac", getPAC)
 	router.GET("/version", showVersion)
@@ -56,13 +75,11 @@ func setupRouter() *gin.Engine {
 }
 
 func getPAC(c *gin.Context) {
-	fmt.Println(proxy_scheme, proxy_port)
-	c.HTML(http.StatusOK, "proxy.pac.tmpl", gin.H{
-		"address": proxy_address,
-		"port":    proxy_port,
-		"scheme":  proxy_scheme,
-		"domains": DOMAINS,
-	})
+	c.Render(http.StatusOK,
+		render.Data{
+			ContentType: "application/x-ns-proxy-autoconfig",
+			Data:        []byte(PACfile),
+		})
 }
 
 func showVersion(c *gin.Context) {

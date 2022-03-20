@@ -1,7 +1,7 @@
-var RE = /.*\.([\w]+\.[\w]+)/i;
+var RE = /.*?\.?([\w]+\.[\w]+)$/i;
 
 var DOMAINS = [
-  {{- range .domains }}
+  {{- range .Domains }}
   "{{ . }}",
   {{- end }}
 ]
@@ -9,7 +9,7 @@ var DOMAINS = [
 function FindProxyForURL (url, host) {
     var searchDomain = url.match(RE)[1];
     if (DOMAINS.includes(searchDomain)) {
-      return '{{ .scheme }} {{ .address }}:{{ .port }}; DIRECT';
+      return '{{ .Scheme }} {{ .Address }}:{{ .Port }}; DIRECT';
     } else {
       return 'DIRECT';
     }
