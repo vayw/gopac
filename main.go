@@ -66,7 +66,7 @@ type Config struct {
 	Domains []string `json:"domains"`
 	Proxies []struct {
 		Address string `json:"address"`
-		Port    string `json:"port"`
+		Port    int    `json:"port"`
 		Scheme  string `json:"scheme"`
 	} `json:"proxies"`
 }
