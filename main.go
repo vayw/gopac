@@ -10,9 +10,6 @@ import (
 	"log"
 	"net/http"
 	"text/template"
-
-	"github.com/gin-gonic/gin"
-	"github.com/gin-gonic/gin/render"
 )
 
 var version = "undefined"
@@ -40,9 +37,10 @@ func main() {
 	preparePAC()
 
 	httpport := fmt.Sprintf("%s:%d", *addr, *port)
-	router := setupRouter()
+	http.HandleFunc("/proxy.pac", getPAC)
+	http.HandleFunc("/version", showVersion)
 
-	router.Run(httpport)
+	http.ListenAndServe(httpport, nil)
 }
 
 func preparePAC() {
@@ -62,28 +60,14 @@ func preparePAC() {
 	PACfile = tpl.String()
 }
 
-func setupRouter() *gin.Engine {
-	if debug == false {
-		gin.SetMode(gin.ReleaseMode)
-	}
-	router := gin.Default()
-
-	router.GET("/proxy.pac", getPAC)
-	router.GET("/version", showVersion)
-
-	return router
+func getPAC(w http.ResponseWriter, r *http.Request) {
+	log.Println("http:", r.Method, r.URL, r.RemoteAddr)
+	w.Header().Set("ContentType", "application/x-ns-proxy-autoconfig")
+	fmt.Fprint(w, PACfile)
 }
 
-func getPAC(c *gin.Context) {
-	c.Render(http.StatusOK,
-		render.Data{
-			ContentType: "application/x-ns-proxy-autoconfig",
-			Data:        []byte(PACfile),
-		})
-}
-
-func showVersion(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"version": version})
+func showVersion(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, version)
 }
 
 type DomainsList struct {
