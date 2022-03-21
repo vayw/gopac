@@ -7,10 +7,11 @@ var DOMAINS = [
 ]
 
 function FindProxyForURL (url, host) {
-    var searchDomain = url.match(RE)[1];
-    if (DOMAINS.includes(searchDomain)) {
+  var search_domain = host.match(RE)[1]
+  for (var i = 0; i < DOMAINS.length; i++) {
+    if (search_domain == DOMAINS[i]) {
       return '{{ .Scheme }} {{ .Address }}:{{ .Port }}; DIRECT';
-    } else {
-      return 'DIRECT';
     }
+  }
+  return 'DIRECT';
 }
