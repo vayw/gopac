@@ -15,10 +15,8 @@ import (
 var version = "undefined"
 var debug bool
 
-var proxy_scheme, proxy_address, proxy_port string
-
 var PACfile string
-var DOMAINS []string
+var Conf Config
 
 //go:embed templates/proxy.pac.tmpl
 var f embed.FS
@@ -27,13 +25,10 @@ func main() {
 	flag.BoolVar(&debug, "debug", false, "debug mode")
 	port := flag.Int("port", 6033, "http port")
 	addr := flag.String("address", "0.0.0.0", "ip address")
-	config := flag.String("domains-file", "gopac.conf.json", "json config file")
-	flag.StringVar(&proxy_scheme, "proxy-scheme", "SOCKS5", "proxy scheme")
-	flag.StringVar(&proxy_address, "proxy-address", "0.0.0.0", "proxy address")
-	flag.StringVar(&proxy_port, "proxy-port", "8080", "proxy port")
+	config := flag.String("config-file", "gopac.conf.json", "json config file")
 	flag.Parse()
 
-	loadDomains(*config)
+	loadConfig(*config)
 	preparePAC()
 
 	httpport := fmt.Sprintf("%s:%d", *addr, *port)
@@ -48,11 +43,8 @@ func preparePAC() {
 
 	var tpl bytes.Buffer
 	data := struct {
-		Address string
-		Port    string
-		Scheme  string
-		Domains []string
-	}{proxy_address, proxy_port, proxy_scheme, DOMAINS}
+		C Config
+	}{Conf}
 
 	if err := templ.ExecuteTemplate(&tpl, "proxy.pac.tmpl", data); err != nil {
 		log.Panic(err)
@@ -70,21 +62,24 @@ func showVersion(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, version)
 }
 
-type DomainsList struct {
+type Config struct {
 	Domains []string `json:"domains"`
+	Proxies []struct {
+		Address string `json:"address"`
+		Port    string `json:"port"`
+		Scheme  string `json:"scheme"`
+	} `json:"proxies"`
 }
 
-func loadDomains(fname string) {
+func loadConfig(fname string) {
 	// read file
 	data, err := ioutil.ReadFile(fname)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	var dlist DomainsList
-	err = json.Unmarshal(data, &dlist)
+	err = json.Unmarshal(data, &Conf)
 	if err != nil {
 		log.Panic("error:", err)
 	}
-	DOMAINS = dlist.Domains
 }
